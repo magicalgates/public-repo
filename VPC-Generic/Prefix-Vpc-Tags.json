@@ -1,0 +1,30 @@
+[
+    {
+        "Key": "ApplicationId",
+        "Value": "Common"
+    },
+    {
+        "Key": "ApplicationRole",
+        "Value": "Common-Cfn"
+    },
+    {
+        "Key": "Owner",
+        "Value": "Yash"
+    },
+    {
+        "Key": "Environment",
+        "Value": "Staging"
+    },
+    {
+        "Key": "Project",
+        "Value": "Prefix"
+    },
+    {
+        "Key": "InfoClassification",
+        "Value": "Internal"
+    },
+    {
+        "Key": "Name",
+        "Value": "Prefix-Staging-Vpc-Stack"
+    }
+]

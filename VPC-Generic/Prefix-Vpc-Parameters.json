@@ -1,0 +1,114 @@
+[
+    {
+        "ParameterKey": "AdditionalTgwDestinationIps",
+        "ParameterValue": "None,None,None,None"
+    },
+    {
+        "ParameterKey": "AppSubnetNaclCreate",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "AppSubnetNaclInboundRules",
+        "ParameterValue": "1001:0:65535:6:allow:0.0.0.0/0,1000:0:65536:-1:allow:0.0.0.0/0,None,None"
+    },
+    {
+        "ParameterKey": "AppSubnetNaclOutboundRules",
+        "ParameterValue": "1001:0:65535:6:allow:0.0.0.0/0,1000:0:65536:-1:allow:0.0.0.0/0,None,Nonee"
+    },
+    {
+        "ParameterKey": "DBSubnetCIDRs",
+        "ParameterValue": "10.99.20.0/24:Db,10.99.21.0/24:Db,10.99.22.0/24:Db"
+    },
+    {
+        "ParameterKey": "DbSubnetNaclCreate",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "DbSubnetNaclInboundRules",
+        "ParameterValue": "1000:443:443:6:allow:0.0.0.0/0,None,None,None"
+    },
+    {
+        "ParameterKey": "DbSubnetNaclOutboundRules",
+        "ParameterValue": "1000:443:443:6:allow:0.0.0.0/0,None,None,None"
+    },
+    {
+        "ParameterKey": "DefaultIgwRouteRuleRequired",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "DefaultNatRouteRuleRequired",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "EnvironmentType",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "ExistingIGWId",
+        "ParameterValue": "None"
+    },
+    {
+        "ParameterKey": "ExistingNATId",
+        "ParameterValue": "None"
+    },
+    {
+        "ParameterKey": "ExistingPublicSubnetId",
+        "ParameterValue": "None"
+    },
+    {
+        "ParameterKey": "ExistingVPCId",
+        "ParameterValue": "None"
+    },
+    {
+        "ParameterKey": "PrivateSubnetCIDRs",
+        "ParameterValue": "10.99.12.0/24:App,10.99.13.0/24:App,10.99.14.0/24:App,None:None"
+    },
+    {
+        "ParameterKey": "PrivateTgwDestinationIps",
+        "ParameterValue": "None,None,None,None"
+    },
+    {
+        "ParameterKey": "PublicSubnetCIDRs",
+        "ParameterValue": "10.99.1.0/24:Public,10.99.2.0/24:Public,10.99.3.0/24:Public,None:None"
+    },
+    {
+        "ParameterKey": "PublicSubnetNaclCreate",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "PublicSubnetNaclInboundRules",
+        "ParameterValue": "1000:443:443:6:allow:0.0.0.0/0,None,None,None"
+    },
+    {
+        "ParameterKey": "PublicSubnetNaclOutboundRules",
+        "ParameterValue": "PublicSubnetNaclOutboundRules"
+    },
+    {
+        "ParameterKey": "Purpose",
+        "ParameterValue": "Main"
+    },
+    {
+        "ParameterKey": "ResourceNamePrefix",
+        "ParameterValue": "Prefix"
+    },
+    {
+        "ParameterKey": "SubnetAZs",
+        "ParameterValue": "us-east-1a,us-east-1b,us-east-1c"
+    },
+    {
+        "ParameterKey": "TransitGatewayId",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "VpcCIDR",
+        "ParameterValue": "10.99.0.0/16"
+    },
+    {
+        "ParameterKey": "VpcFlowLogsS3BucketName",
+        "ParameterValue": "dev-security-vpcflowlogs"
+    },
+    {
+        "ParameterKey": "VpcNewCidrBlock",
+        "ParameterValue": "None"
+    }
+]

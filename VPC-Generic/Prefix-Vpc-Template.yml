@@ -1,0 +1,1246 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This template deploys a VPC,Flow Logs,IGW, NAT, Routetable & Asociation, 3 public,3 private and 3 Db Subnets spread across
+  6 Availability Zones.Version 2.0.Here is the Readmefile link for more information https://github.com/idexcel-technologies-pvt-ltd/aws-infra-templates/blob/dev/subtitles/Ec2_Vpc.md.
+  
+Parameters:
+  EnvironmentType:
+    Description: Specify environment type.
+    Type: String
+  ResourceNamePrefix:
+    Type: String
+    Description: Specify prefix for Resource Name.
+  VpcCIDR:
+    Description: For New Vpc creation specify "Valid CIDR" or else "None".
+    Type: String
+    Default: 'None'
+  VpcNewCidrBlock:
+    Type: String
+    Description: For Vpc CIDR addition to the Vpc, specify "Valid CIDR" or else "None".
+    Default: 'None'
+  SubnetAZs:
+    Description: 'Please select the Availability Zone '
+    Type: CommaDelimitedList 
+  VpcFlowLogsS3BucketName:
+    Type: String
+    Description: (Optional)Mention the bucket name for storing Flow Logs, If its left empty flow logs will not be created.
+  DBSubnetCIDRs:
+    Type: CommaDelimitedList
+    Default: 'None:None,None:None,None:None' 
+    Description: "Specify CIDRs for db subnets and specify the name of subnet, if you want to create mention valid subnet cidr and name ex: 10.0.2.0/24:db,None:None...a Min of 1 to Max of 3 Subnets can be created" 
+  PublicSubnetCIDRs:
+    Type: CommaDelimitedList
+    Default: 'None:None,None:None,None:None,None:None'
+    Description: "Specify CIDRs for public subnets and specify the name of subnet, if you want to create mention valid subnet cidr and name ex: 10.0.1.0/24:Public,None:None... a Min of 1 to Max of 10 Subnets can be created" 
+  PrivateSubnetCIDRs:
+    Type: CommaDelimitedList
+    Default: 'None:None,None:None,None:None,None:None' 
+    Description: "Specify CIDRs for private subnets and specify the name of subnet, if you want to create mention valid subnet cidr and name ex: 10.0.2.0/24:Private,None:None...a Min of 1 to Max of 10 Subnets can be created"
+  TransitGatewayId:
+    Type: String
+    Description: (Optional)Specify the TransitGatewayId for route creation
+  PrivateTgwDestinationIps:
+    Type: CommaDelimitedList
+    Default: 'None,None,None,None' 
+    Description: "Specify list of ip's for tgw route creation for Private subnets, Trasitgateway id should be passed before passing Ip's here" 
+  AdditionalTgwDestinationIps:
+    Type: CommaDelimitedList
+    Default: 'None,None,None,None' 
+    Description: "Specify list of ip's for tgw route creation for Additional subnets, Trasitgateway id should be passed before passing Ip's here"     
+  ExistingVPCId :
+    Type: String
+    Description: Provide existing vpcid for new vpc cidr addition, extra subnet creation & flow logs.
+    Default: "None"
+  ExistingNATId :
+    Type: String
+    Description: To create New NAT resource mention "None" or Specify Any NATID, If it is not required leave the parameter empty.
+  DefaultNatRouteRuleRequired:
+    Type: String
+    Description: Select True if NATGateway is required,If not select False.
+    AllowedValues:
+    - true
+    - false
+  ExistingIGWId :
+    Type: String
+    Description: To create New IGW resource mention "None" or Specify Any IgwID, If it is not required leave the parameter empty.
+    Default: None
+  DefaultIgwRouteRuleRequired:
+    Type: String
+    Description: Select True if InternetGateway is required,If not select False.
+    AllowedValues:
+    - true
+    - false
+  ExistingPublicSubnetId :
+    Type: String
+    Description: If you are not creating NATGateway with existing public subnet then give "None" &&& If creating through existing public subnet, mention public subnetid.
+    Default: None
+  PublicSubnetNaclInboundRules:
+    Type: CommaDelimitedList
+    Description: 'Specify the rule information in following format "RuleNumber:FromPort:ToPort:Protocol:RuleAction:CidrBlock.,.,.". The values are used to create the NACL rules dynamically. (ex. 1000:443:443:6:allow:0.0.0.0/0)'
+    Default: '1000:443:443:6:allow:0.0.0.0/0,None,None,None'
+  PublicSubnetNaclOutboundRules:
+    Type: CommaDelimitedList
+    Description: 'Specify the rule information in following format "RuleNumber:FromPort:ToPort:Protocol:RuleAction:CidrBlock.,.,.". The values are used to create the NACL rules dynamically.(ex. 1000:443:443:6:allow:0.0.0.0/0)'
+    Default: '1000:443:443:6:allow:0.0.0.0/0,None,None,None'
+  AppSubnetNaclInboundRules:
+    Type: CommaDelimitedList
+    Description: 'Specify the rule information in following format "RuleNumber:FromPort:ToPort:Protocol:RuleAction:CidrBlock.,.,.". The values are used to create the NACL rules dynamically. (ex. 1000:443:443:6:allow:0.0.0.0/0)'
+    Default: 'None,None,None,None'
+  AppSubnetNaclOutboundRules:
+    Type: CommaDelimitedList
+    Description: 'Specify the rule information in following format "RuleNumber:FromPort:ToPort:Protocol:RuleAction:CidrBlock.,.,.". The values are used to create the NACL rules dynamically.(ex. 1000:443:443:6:allow:0.0.0.0/0)'
+    Default: 'None,None,None,None'
+  DbSubnetNaclInboundRules:
+    Type: CommaDelimitedList
+    Description: 'Specify the rule information in following format "RuleNumber:FromPort:ToPort:Protocol:RuleAction:CidrBlock.,.,.". The values are used to create the NACL rules dynamically. (ex. 1000:443:443:6:allow:0.0.0.0/0)'
+    Default: '1000:443:443:6:allow:0.0.0.0/0,None,None,None'
+  DbSubnetNaclOutboundRules:
+    Type: CommaDelimitedList
+    Description: 'Specify the rule information in following format "RuleNumber:FromPort:ToPort:Protocol:RuleAction:CidrBlock.,.,.". The values are used to create the NACL rules dynamically.(ex. 1000:443:443:6:allow:0.0.0.0/0)'
+    Default: '1000:443:443:6:allow:0.0.0.0/0,None,None,None'
+  PublicSubnetNaclCreate:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Description: 'Specifies true, if Nacl would be created PublicSubnet'
+  AppSubnetNaclCreate:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Description: 'Specifies true, if Nacl would be created AppSubnet'
+  DbSubnetNaclCreate:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Description: 'Specifies true, if Nacl would be created DbSubnet'
+  Purpose:
+    Type: String
+    Default: DA
+    Description: "Specify the purpose of the Creation, example DA..etc"
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label: 
+          default: Naming Conventions
+        Parameters:
+          - EnvironmentType
+          - ResourceNamePrefix
+          - Purpose
+      - Label:
+          default: Existing Resources
+        Parameters:
+          - ExistingVPCId
+          - DefaultNatRouteRuleRequired
+          - ExistingNATId
+          - DefaultIgwRouteRuleRequired
+          - ExistingIGWId
+          - ExistingPublicSubnetId
+      - Label: 
+          default: VPC Details
+        Parameters:
+          - VpcCIDR
+          - VpcNewCidrBlock
+          - VpcFlowLogsS3BucketName
+      - Label: 
+          default: Subnet Details
+        Parameters:
+          - PublicSubnetCIDRs
+          - PrivateSubnetCIDRs
+          - DBSubnetCIDRs
+          - SubnetAZs
+      - Label:
+          default: TransitGateway Details
+        Parameters:
+          - TransitGatewayId
+          - PrivateTgwDestinationIps
+          - AdditionalTgwDestinationIps
+
+Conditions:
+  IsFlowLogsRequired: !Not [!Equals [ !Ref VpcFlowLogsS3BucketName, ""]]  
+
+  IsVPCRequired: !Not [!Equals [!Ref VpcCIDR, "None"]]
+  IsExtraVpcCidrRequired: !Not [!Equals [!Ref VpcNewCidrBlock, "None"]]
+  
+  UseExitingIgw: !Equals [ !Ref ExistingIGWId, "None"]
+  IsDefaultIgwRouteRuleRequired: !Equals [!Ref DefaultIgwRouteRuleRequired, "true"]
+  
+  UseExistingNat: !Equals [ !Ref ExistingNATId, "None"]
+  IsDefaultNatRouteRuleRequired: !Equals [!Ref DefaultNatRouteRuleRequired, "true"]
+  
+  PublicSubnetCIDRs0Exist: !Not [!Equals [ !Select [0, !Ref PublicSubnetCIDRs], "None:None"]]
+  PublicSubnetCIDRs1Exist: !Not [!Equals [ !Select [1, !Ref PublicSubnetCIDRs], "None:None"]]
+  PublicSubnetCIDRs2Exist: !Not [!Equals [ !Select [2, !Ref PublicSubnetCIDRs], "None:None"]]
+  PublicSubnetCIDRs3Exist: !Not [!Equals [ !Select [3, !Ref PublicSubnetCIDRs], "None:None"]]
+  
+  PrivateSubnetCIDRs0Exist: !Not [!Equals [ !Select [0, !Ref PrivateSubnetCIDRs], "None:None"]]
+  PrivateSubnetCIDRs1Exist: !Not [!Equals [ !Select [1, !Ref PrivateSubnetCIDRs], "None:None"]]
+  PrivateSubnetCIDRs2Exist: !Not [!Equals [ !Select [2, !Ref PrivateSubnetCIDRs], "None:None"]]
+  PrivateSubnetCIDRs3Exist: !Not [!Equals [ !Select [3, !Ref PrivateSubnetCIDRs], "None:None"]]
+
+  DBSubnetCIDRs0Exist: !Not [!Equals [ !Select [0, !Ref DBSubnetCIDRs], "None:None"]] 
+  DBSubnetCIDRs1Exist: !Not [!Equals [ !Select [1, !Ref DBSubnetCIDRs], "None:None"]] 
+  DBSubnetCIDRs2Exist: !Not [!Equals [ !Select [2, !Ref DBSubnetCIDRs], "None:None"]] 
+  
+  TgwDestinationPrivateIps0Exist: !Not [!Equals [ !Select [0, !Ref PrivateTgwDestinationIps], "None"]]
+  TgwDestinationPrivateIps1Exist: !Not [!Equals [ !Select [1, !Ref PrivateTgwDestinationIps], "None"]]
+  TgwDestinationPrivateIps2Exist: !Not [!Equals [ !Select [2, !Ref PrivateTgwDestinationIps], "None"]]
+  TgwDestinationPrivateIps3Exist: !Not [!Equals [ !Select [3, !Ref PrivateTgwDestinationIps], "None"]]
+  
+  TgwDestinationAdditionalIps0Exist: !Not [!Equals [ !Select [0, !Ref AdditionalTgwDestinationIps], "None"]]
+  TgwDestinationAdditionalIps1Exist: !Not [!Equals [ !Select [1, !Ref AdditionalTgwDestinationIps], "None"]]
+  TgwDestinationAdditionalIps2Exist: !Not [!Equals [ !Select [2, !Ref AdditionalTgwDestinationIps], "None"]]
+  TgwDestinationAdditionalIps3Exist: !Not [!Equals [ !Select [3, !Ref AdditionalTgwDestinationIps], "None"]]
+  
+  PublicSubnetNaclRequired: !Equals [ !Ref PublicSubnetNaclCreate, 'true']
+  AppSubnetNaclRequired: !Equals [ !Ref AppSubnetNaclCreate, 'true']
+  DbSubnetNaclRequired: !Equals [ !Ref DbSubnetNaclCreate, 'true']
+
+  AppSubnetNaclInboundRules0Exist: !Not [ !Equals [ !Select [0, !Ref AppSubnetNaclInboundRules], "None"] ]
+  AppSubnetNaclInboundRules1Exist: !Not [ !Equals [ !Select [1, !Ref AppSubnetNaclInboundRules], "None"] ]
+  AppSubnetNaclInboundRules2Exist: !Not [ !Equals [ !Select [2, !Ref AppSubnetNaclInboundRules], "None"] ]
+  AppSubnetNaclInboundRules3Exist: !Not [ !Equals [ !Select [3, !Ref AppSubnetNaclInboundRules], "None"] ]
+
+  AppSubnetNaclOutboundRules0Exist: !Not [ !Equals [ !Select [0, !Ref AppSubnetNaclOutboundRules], "None"] ]
+  AppSubnetNaclOutboundRules1Exist: !Not [ !Equals [ !Select [1, !Ref AppSubnetNaclOutboundRules], "None"] ]
+  AppSubnetNaclOutboundRules2Exist: !Not [ !Equals [ !Select [2, !Ref AppSubnetNaclOutboundRules], "None"] ]
+  AppSubnetNaclOutboundRules3Exist: !Not [ !Equals [ !Select [3, !Ref AppSubnetNaclOutboundRules], "None"] ]
+
+  PublicSubnetNaclInboundRules0Exist: !Not [ !Equals [ !Select [0, !Ref PublicSubnetNaclInboundRules], "None"] ]
+  PublicSubnetNaclInboundRules1Exist: !Not [ !Equals [ !Select [1, !Ref PublicSubnetNaclInboundRules], "None"] ]
+  PublicSubnetNaclInboundRules2Exist: !Not [ !Equals [ !Select [2, !Ref PublicSubnetNaclInboundRules], "None"] ]
+  PublicSubnetNaclInboundRules3Exist: !Not [ !Equals [ !Select [3, !Ref PublicSubnetNaclInboundRules], "None"] ]
+
+  PublicSubnetNaclOutboundRules0Exist: !Not [ !Equals [ !Select [0, !Ref PublicSubnetNaclOutboundRules], "None"] ]
+  PublicSubnetNaclOutboundRules1Exist: !Not [ !Equals [ !Select [1, !Ref PublicSubnetNaclOutboundRules], "None"] ]
+  PublicSubnetNaclOutboundRules2Exist: !Not [ !Equals [ !Select [2, !Ref PublicSubnetNaclOutboundRules], "None"] ]
+  PublicSubnetNaclOutboundRules3Exist: !Not [ !Equals [ !Select [3, !Ref PublicSubnetNaclOutboundRules], "None"] ]
+
+  DbSubnetNaclInboundRules0Exist: !Not [ !Equals [ !Select [0, !Ref DbSubnetNaclInboundRules], "None"] ]
+  DbSubnetNaclInboundRules1Exist: !Not [ !Equals [ !Select [1, !Ref DbSubnetNaclInboundRules], "None"] ]
+  DbSubnetNaclInboundRules2Exist: !Not [ !Equals [ !Select [2, !Ref DbSubnetNaclInboundRules], "None"] ]
+  DbSubnetNaclInboundRules3Exist: !Not [ !Equals [ !Select [3, !Ref DbSubnetNaclInboundRules], "None"] ]
+
+  DbSubnetNaclOutboundRules0Exist: !Not [ !Equals [ !Select [0, !Ref DbSubnetNaclOutboundRules], "None"] ]
+  DbSubnetNaclOutboundRules1Exist: !Not [ !Equals [ !Select [1, !Ref DbSubnetNaclOutboundRules], "None"] ]
+  DbSubnetNaclOutboundRules2Exist: !Not [ !Equals [ !Select [2, !Ref DbSubnetNaclOutboundRules], "None"] ]
+  DbSubnetNaclOutboundRules3Exist: !Not [ !Equals [ !Select [3, !Ref DbSubnetNaclOutboundRules], "None"] ]
+
+Resources:
+# __     ______   ____ 
+# \ \   / /  _ \ / ___|
+#  \ \ / /| |_) | |
+#   \ V / |  __/| |___
+#    \_/  |_|    \____|
+
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Condition: IsVPCRequired 
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Vpc'
+        - Key: ApplicationRole
+          Value: DA-Vpc
+  VPCCidrBlock:
+    Type: 'AWS::EC2::VPCCidrBlock'
+    Condition: IsExtraVpcCidrRequired
+    Properties:
+      CidrBlock: !Ref VpcNewCidrBlock
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+
+#  ___ ______        __
+# |_ _/ ___\ \      / /
+#  | | |  _ \ \ /\ / /
+#  | | |_| | \ V  V /
+# |___\____|  \_/\_/
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Condition: UseExitingIgw
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Igw'
+        - Key: ApplicationRole
+          Value: Net-Igw
+  InternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Condition: UseExitingIgw
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+    DependsOn: InternetGateway
+
+#  ____  _   _ ____  _   _ _____ _____
+# / ___|| | | | __ )| \ | | ____|_   _|
+# \___ \| | | |  _ \|  \| |  _|   | |
+#  ___) | |_| | |_) | |\  | |___  | |
+# |____/ \___/|____/|_| \_|_____| |_|
+
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PublicSubnetCIDRs0Exist    
+    Properties:
+      AvailabilityZone: !Select [0, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 0, !Ref PublicSubnetCIDRs]]]
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId      
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 0, !Ref PublicSubnetCIDRs]]], !Select [0, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pub-Sub-1
+  PublicSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PublicSubnetCIDRs1Exist    
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [1, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 1, !Ref PublicSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 1, !Ref PublicSubnetCIDRs]]], !Select [1, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pub-Sub-2
+  PublicSubnet3:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PublicSubnetCIDRs2Exist    
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [2, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 2, !Ref PublicSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 2, !Ref PublicSubnetCIDRs]]], !Select [2, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pub-Sub-3
+  PublicSubnet4:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PublicSubnetCIDRs3Exist    
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [3, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 3, !Ref PublicSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 3, !Ref PublicSubnetCIDRs]]], !Select [3, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pub-Sub-4
+
+  PrivateSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PrivateSubnetCIDRs0Exist    
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [0, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 0, !Ref PrivateSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 0, !Ref PrivateSubnetCIDRs]]], !Select [0, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pvt-Sub-1
+  PrivateSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PrivateSubnetCIDRs1Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [1, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 1, !Ref PrivateSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 1, !Ref PrivateSubnetCIDRs]]], !Select [1, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pvt-Sub-2
+  PrivateSubnet3:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PrivateSubnetCIDRs2Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [2, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 2, !Ref PrivateSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 2, !Ref PrivateSubnetCIDRs]]], !Select [2, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pvt-Sub-3
+  PrivateSubnet4:
+    Type: 'AWS::EC2::Subnet'
+    Condition: PrivateSubnetCIDRs3Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [3, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 3, !Ref PrivateSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 3, !Ref PrivateSubnetCIDRs]]], !Select [3, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Pvt-Sub-4
+
+  DBSubnet1:
+    Type: 'AWS::EC2::Subnet'
+    Condition: DBSubnetCIDRs0Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [0, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 0, !Ref DBSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 0, !Ref DBSubnetCIDRs]]], !Select [0, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Db-Sub-1
+  DBSubnet2:
+    Type: 'AWS::EC2::Subnet'
+    Condition: DBSubnetCIDRs1Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [1, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 1, !Ref DBSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 1, !Ref DBSubnetCIDRs]]], !Select [1, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Db-Sub-2
+  DBSubnet3:
+    Type: 'AWS::EC2::Subnet'
+    Condition: DBSubnetCIDRs2Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      AvailabilityZone: !Select [2, !Ref SubnetAZs]
+      CidrBlock: !Select [ 0, !Split [ ":", !Select [ 2, !Ref DBSubnetCIDRs]]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-" ,[ !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}',!Select [ 1, !Split [ ":", !Select [ 2, !Ref DBSubnetCIDRs]]], !Select [2, !Ref SubnetAZs], Sub ]]
+        - Key: ApplicationRole
+          Value: Net-Db-Sub-3
+
+#  _   _    _  _____ 
+# | \ | |  / \|_   _|
+# |  \| | / _ \ | |
+# | |\  |/ ___ \| |
+# |_| \_/_/   \_\_|
+
+  NatGatewayEIP:
+    Type: 'AWS::EC2::EIP'
+    Condition: UseExistingNat 
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Nat-Eip'
+        - Key: ApplicationRole
+          Value: Net-Nat-Eip
+  NatGateway:
+    Type: 'AWS::EC2::NatGateway'
+    Condition: UseExistingNat     
+    Properties:
+      AllocationId: !GetAtt 
+        - NatGatewayEIP
+        - AllocationId
+      SubnetId: 
+        !If
+        - PublicSubnetCIDRs0Exist
+        - !Ref PublicSubnet1
+        - !Ref ExistingPublicSubnetId
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Nat'
+        - Key: ApplicationRole
+          Value: Net-Nat
+
+#  ____   ___  _   _ _____ _____   _____  _    ____  _     _____ 
+# |  _ \ / _ \| | | |_   _| ____| |_   _|/ \  | __ )| |   | ____|
+# | |_) | | | | | | | | | |  _|     | | / _ \ |  _ \| |   |  _|
+# |  _ <| |_| | |_| | | | | |___    | |/ ___ \| |_) | |___| |___
+# |_| \_\\___/ \___/  |_| |_____|   |_/_/   \_\____/|_____|_____|
+
+  PublicRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Condition: PublicSubnetCIDRs0Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Pub-Rtb'
+        - Key: ApplicationRole
+          Value: Net-Pub-Rtb
+  PublicRouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: IsDefaultIgwRouteRuleRequired
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        !If
+        - UseExitingIgw
+        - !Ref InternetGateway 
+        - !Ref ExistingIGWId
+  PublicSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PublicSubnetCIDRs0Exist
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+  PublicSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PublicSubnetCIDRs1Exist
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+  PublicSubnet3RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PublicSubnetCIDRs2Exist
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet3
+  PublicSubnet4RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PublicSubnetCIDRs3Exist
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet4
+  PrivateRouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: IsDefaultNatRouteRuleRequired     
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        !If
+        - UseExistingNat
+        - !Ref NatGateway 
+        - !Ref ExistingNATId
+  PrivateRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Condition: PrivateSubnetCIDRs0Exist      
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-Pvt-Rtb'
+        - Key: ApplicationRole
+          Value: Net-Pvt-Rtb    
+  Private1SubnetRouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: TgwDestinationPrivateIps0Exist      
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Select [ 0, !Ref PrivateTgwDestinationIps]
+      TransitGatewayId: !Ref TransitGatewayId
+  PrivateSubnet2RouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: TgwDestinationPrivateIps1Exist      
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Select [ 1, !Ref PrivateTgwDestinationIps]
+      TransitGatewayId: !Ref TransitGatewayId
+  Private3SubnetRouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: TgwDestinationPrivateIps2Exist      
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Select [ 2, !Ref PrivateTgwDestinationIps]
+      TransitGatewayId: !Ref TransitGatewayId
+  Private4SubnetRouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: TgwDestinationPrivateIps3Exist      
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Select [ 3, !Ref PrivateTgwDestinationIps]
+      TransitGatewayId: !Ref TransitGatewayId
+  PrivateSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PrivateSubnetCIDRs0Exist    
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+  PrivateSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PrivateSubnetCIDRs1Exist
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+  PrivateSubnet3RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PrivateSubnetCIDRs2Exist
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet3
+  PrivateSubnet4RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: PrivateSubnetCIDRs3Exist
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet4 
+  DBRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Condition: DBSubnetCIDRs0Exist
+    Properties:
+      VpcId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Db-Rtb'
+        - Key: ApplicationRole
+          Value: Net-Db-Rtb
+  DBRouteRule:
+    Type: 'AWS::EC2::Route'
+    Condition: IsDefaultNatRouteRuleRequired    
+    Properties:
+      RouteTableId: !Ref DBRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        !If
+        - UseExistingNat
+        - !Ref NatGateway 
+        - !Ref ExistingNATId
+  DBSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: DBSubnetCIDRs0Exist
+    Properties:
+      RouteTableId: !Ref DBRouteTable
+      SubnetId: !Ref DBSubnet1
+  DBSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: DBSubnetCIDRs1Exist
+    Properties:
+      RouteTableId: !Ref DBRouteTable
+      SubnetId: !Ref DBSubnet2
+  DBSubnet3RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Condition: DBSubnetCIDRs2Exist
+    Properties:
+      RouteTableId: !Ref DBRouteTable
+      SubnetId: !Ref DBSubnet3
+
+# __     ______   ____   _____ _     _____        __  _     ___   ____ ____  
+# \ \   / /  _ \ / ___| |  ___| |   / _ \ \      / / | |   / _ \ / ___/ ___|
+#  \ \ / /| |_) | |     | |_  | |  | | | \ \ /\ / /  | |  | | | | |  _\___ \
+#   \ V / |  __/| |___  |  _| | |__| |_| |\ V  V /   | |__| |_| | |_| |___) |
+#    \_/  |_|    \____| |_|   |_____\___/  \_/\_/    |_____\___/ \____|____/
+
+  FlowLogs:
+    Type: 'AWS::EC2::FlowLog'
+    Condition: IsFlowLogsRequired    
+    Properties:
+      ResourceType: VPC
+      ResourceId: 
+        !If
+        - IsVPCRequired
+        - !Ref VPC 
+        - !Ref ExistingVPCId     
+      TrafficType: ALL
+      LogDestinationType: s3
+      LogDestination: !Sub 'arn:aws:s3:::${VpcFlowLogsS3BucketName}'
+      Tags: 
+      - Key: Name
+        Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Vpc-FlowLogs'
+      - Key: ApplicationRole
+        Value: Net-FlowLogs
+
+#  _   _    _    ____ _     ____  
+# | \ | |  / \  / ___| |   / ___|
+# |  \| | / _ \| |   | |   \___ \
+# | |\  |/ ___ \ |___| |___ ___) |
+# |_| \_/_/   \_\____|_____|____/
+
+  PublicNetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Condition: PublicSubnetNaclRequired
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-${Purpose}-Public-Nacl'
+      - Key: ApplicationRole
+        Value: !Sub 'Public-NetworkAcl'
+  PublicSubnetNaclInboundRules0:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclInboundRules0Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: PublicNetworkAcl
+  PublicSubnetNaclInboundRules1:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclInboundRules1Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: PublicNetworkAcl
+  PublicSubnetNaclInboundRules2:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclInboundRules2Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: PublicNetworkAcl
+  PublicSubnetNaclInboundRules3:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclInboundRules3Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: PublicNetworkAcl
+        
+  PublicSubnetNaclOutboundRules0:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclOutboundRules0Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 0, !Ref PublicSubnetNaclOutboundRules]]]
+      NetworkAclId:
+        Ref: PublicNetworkAcl 
+  PublicSubnetNaclOutboundRules1:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclOutboundRules1Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 1, !Ref PublicSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: PublicNetworkAcl 
+  PublicSubnetNaclOutboundRules2:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclOutboundRules2Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 2, !Ref PublicSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: PublicNetworkAcl 
+  PublicSubnetNaclOutboundRules3:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: PublicSubnetNaclOutboundRules3Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 3, !Ref PublicSubnetNaclOutboundRules]]]
+      NetworkAclId:
+        Ref: PublicNetworkAcl
+
+  AppNetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Condition: AppSubnetNaclRequired
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Nacl'
+
+      - Key: ApplicationRole
+        Value: !Sub 'App-NetworkAcl'
+
+  AppSubnetNaclInboundRules0:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclInboundRules0Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: AppNetworkAcl
+  AppSubnetNaclInboundRules1:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclInboundRules1Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: AppNetworkAcl
+  AppSubnetNaclInboundRules2:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclInboundRules2Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: AppNetworkAcl
+  AppSubnetNaclInboundRules3:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclInboundRules3Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: AppNetworkAcl
+
+  AppSubnetNaclOutboundRules0:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclOutboundRules0Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 0, !Ref AppSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: AppNetworkAcl
+  AppSubnetNaclOutboundRules1:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclOutboundRules1Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 1, !Ref AppSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: AppNetworkAcl
+  AppSubnetNaclOutboundRules2:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclOutboundRules2Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 2, !Ref AppSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: AppNetworkAcl
+  AppSubnetNaclOutboundRules3:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: AppSubnetNaclOutboundRules3Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 3, !Ref AppSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: AppNetworkAcl
+
+  DbNetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Condition: DbSubnetNaclRequired
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value: !Sub '${ResourceNamePrefix}-${EnvironmentType}-Db-Nacl'
+      - Key: ApplicationRole
+        Value: !Sub 'Db-NetworkAcl'
+  DbSubnetNaclInboundRules0:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclInboundRules0Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: DbNetworkAcl
+ 
+  DbSubnetNaclInboundRules1:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclInboundRules1Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: DbNetworkAcl
+  DbSubnetNaclInboundRules2:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclInboundRules2Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: DbNetworkAcl
+  DbSubnetNaclInboundRules3:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclInboundRules3Exist
+    Properties:
+      Egress: 'false'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclInboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclInboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclInboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclInboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclInboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclInboundRules]]]
+      NetworkAclId:
+        Ref: DbNetworkAcl
+        
+  DbSubnetNaclOutboundRules0:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclOutboundRules0Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 0, !Ref DbSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: DbNetworkAcl
+ 
+  DbSubnetNaclOutboundRules1:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclOutboundRules1Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 1, !Ref DbSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: DbNetworkAcl
+  DbSubnetNaclOutboundRules2:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclOutboundRules2Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 2, !Ref DbSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: DbNetworkAcl
+  DbSubnetNaclOutboundRules3:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: DbSubnetNaclOutboundRules3Exist
+    Properties:
+      Egress: 'true'
+      RuleNumber: !Select [ 0, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclOutboundRules]]]
+      PortRange:
+        From: !Select [ 1, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclOutboundRules]]]
+        To: !Select [ 2, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclOutboundRules]]]
+      Protocol: !Select [ 3, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclOutboundRules]]]
+      RuleAction: !Select [ 4, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclOutboundRules]]]
+      CidrBlock: !Select [ 5, !Split [ ":", !Select [ 3, !Ref DbSubnetNaclOutboundRules]]]
+      NetworkAclId:
+         Ref: DbNetworkAcl
+
+#     _    ____ ____   ___   ____ ___    _  _____ ___ ___  _   _
+#    / \  / ___/ ___| / _ \ / ___|_ _|  / \|_   _|_ _/ _ \| \ | |
+#   / _ \ \___ \___ \| | | | |    | |  / _ \ | |  | | | | |  \| |
+#  / ___ \ ___) |__) | |_| | |___ | | / ___ \| |  | | |_| | |\  |
+# /_/   \_\____/____/ \___/ \____|___/_/   \_\_| |___\___/|_| \_|
+
+  PublicAppSubnet1Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      NetworkAclId: !Ref PublicNetworkAcl
+  
+  PublicAppSubnet2Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      NetworkAclId: !Ref PublicNetworkAcl
+  
+  PublicAppSubnet3Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      NetworkAclId: !Ref PublicNetworkAcl
+  
+  PrivateAppSubnet1Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      NetworkAclId: !Ref AppNetworkAcl 
+  
+  PrivateAppSubnet2Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      NetworkAclId: !Ref AppNetworkAcl
+  
+  PrivateAppSubnet3Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet3
+      NetworkAclId: !Ref AppNetworkAcl
+  
+  DBSubnet1Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet1
+      NetworkAclId: !Ref DbNetworkAcl 
+  
+  DBSubnet2Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet2
+      NetworkAclId: !Ref DbNetworkAcl
+  
+  DBSubnet3Association:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet3
+      NetworkAclId: !Ref DbNetworkAcl
+
+Outputs:
+  VpcId:
+    Description: Vpc 
+    Value: !Ref VPC
+    Condition: IsVPCRequired
+    Export: 
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-VpcId'
+  PublicSubnetId1:
+    Description: PublicSubnet
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Public-SubnetId1'
+  PublicSubnetId2:
+    Description: PublicSubnet
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Public-SubnetId2'
+  PublicSubnetId3:
+    Description: PublicSubnet
+    Value: !Ref PublicSubnet3
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Public-SubnetId3'
+  PublicSubnets:
+    Description: PublicSubnets 
+    Value:
+      Fn::Join:
+      - ","
+      - - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Public-SubnetIds'
+  PrivateSubnetId1:
+    Description: PrivateSubnet
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Private-SubnetId1'
+  PrivateSubnetId2:
+    Description: PrivateSubnet
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Private-SubnetId2'
+  PrivateSubnetId3:
+    Description: PrivateSubnet
+    Value: !Ref PrivateSubnet3
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Private-SubnetId3'
+  PrivateSubnets:
+    Description: PrivateSubnets
+    Value:
+      Fn::Join:
+      - ","
+      - - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-App-Private-SubnetIds'
+  DBSubnetId1:
+    Description: DBSubnets
+    Value: !Ref DBSubnet1
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-Db-SubnetId1'
+  DBSubnetId2:
+    Description: DBSubnets
+    Value: !Ref DBSubnet2
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-Db-SubnetId2'
+  DBSubnetId3:
+    Description: DBSubnets
+    Value: !Ref DBSubnet3
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-Db-SubnetId3'
+  DBSubnets:
+    Description: DBSubnets
+    Value:
+      Fn::Join:
+      - ","
+      - - !Ref DBSubnet1
+        - !Ref DBSubnet2
+        - !Ref DBSubnet3
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${EnvironmentType}-Db-SubnetIds'
