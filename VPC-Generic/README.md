@@ -73,15 +73,4 @@ To delete the stack and all associated resources:
 aws cloudformation delete-stack --stack-name MyVPCStack
 ```
 
-## License
-
-This project is licensed under the **MIT License**.
-
-## Contributing
-
-Feel free to open an issue or submit a pull request if you have improvements or additional features to propose.
-
-## Contact
-
-For any questions, reach out via **[email/contact details]**.
 
