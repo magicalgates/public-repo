@@ -1,0 +1,26 @@
+[
+    {
+        "ParameterKey": "CloudWatchLogsGroup",
+        "ParameterValue": "Prefix-StgSqlUp-Ms-Logs"
+    },
+    {
+        "ParameterKey": "SecretID",
+        "ParameterValue": "/microservice/backend_stgsqlup-*"
+    },
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "ECRRepo",
+        "ParameterValue": "prefix-stgsqlup-ms-ecr-repo"
+    },
+    {
+        "ParameterKey": "ApplicationId",
+        "ParameterValue": "Ms"
+    },
+    {
+        "ParameterKey": "ApplicationRole",
+        "ParameterValue": "Svc"
+    }
+]

@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create a common EC2 IAM policy.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: StgSqlUp
+    Description: Select a value in which environment the AWS resources needs to be provisioned.
+  ApplicationId:
+    Type: String
+    Default: Ror
+    Description: Provisioned a value for tag ApplicationId.
+  ApplicationRole:
+    Type: String
+    Default: Cron
+    Description: Provisioned a value for tag ApplicationRole.
+  CloudWatchLogsGroup:
+    Type: String
+    Default: Nds-Cync-StgSqlUp-termloan-Jobs-Logs
+    Description: Provide a Loggroup name.
+  SecretID:
+    Type: String
+    Default: Nds-Cync-StgSqlUp-termloan-Jobs-Logs
+    Description: Provide a Secret ID.
+  ECRRepo:    
+    Type: String
+    Default: Nds-Cync-StgSqlUp-termloan-Jobs-Logs
+    Description: Provide a Loggroup name.
+Resources: 
+  IAMPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationId}-${ApplicationRole}-Policy'
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstances'
+                  - 'ecs:DiscoverPollEndpoint'
+                  - 'ecs:Poll'
+                  - 'ecr:GetAuthorizationToken'
+                  - 'autoscaling:DescribeAutoScalingInstances'
+                  - 'cloudformation:DescribeStackResources'
+                  - 'cloudformation:ListStackResources'
+                  - 's3:*'
+                  - 's3-object-lambda:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: !Sub >-
+                  arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CloudWatchLogsGroup}:log-stream:*
+              - Effect: Allow
+                Action:
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetDownloadUrlForLayer'
+                Resource: !Sub >-
+                  arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository:${ECRRepo}
+              - Effect: Allow
+                Action:
+                  - 'secretsmanager:GetSecretValue'
+                Resource: !Sub >-
+                  arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretID}
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:GetObjectTagging'
+                  - 's3:PutObjectTagging'
+                  - 's3:DeleteObject'
+                Resource:
+                  - !Join 
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Sub 'arn:aws:s3:::{{resolve:ssm:/CS/AppInfra/${Environment}/ArtifactsBucketName}}'
+                  - !Join 
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Sub 'arn:aws:s3:::{{resolve:ssm:/CS/AppInfra/${Environment}/ArtifactsBucketName}}'
+                      - /*
+                  - !Join 
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Sub 'arn:aws:s3:::{{resolve:ssm:/CS/AppInfra/${Environment}/ConfigBucketName}}'
+                  - !Join 
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Sub 'arn:aws:s3:::{{resolve:ssm:/CS/AppInfra/${Environment}/ConfigBucketName}}'
+                      - /*
+              - Effect: Allow
+                Action:
+                  - 'ecs:DeregisterContainerInstance'
+                  - 'ecs:RegisterContainerInstance'
+                  - 'ecs:Submit*'
+                  - 'ecs:StartTelemetrySession'
+                Resource:
+                  - !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster:{{resolve:ssm:/CS/AppInfra/${Environment}/EcsClusterName}}'
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource:
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Participation-Loan-App-Lambda'
+
+Outputs:
+  IAMPolicyArn:
+    Description: EC2 common policy arn.
+    Value: !Ref IAMPolicy

@@ -1,0 +1,90 @@
+[
+    {
+        "ParameterKey": "GithubRepoName",
+        "ParameterValue": "repo-name"
+    },
+    {
+        "ParameterKey": "ResourceNamePrefix",
+        "ParameterValue": "Prefix"
+    },
+    {
+        "ParameterKey": "GithubBranch",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "LambdaDeployStageRequired",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "InfraTemplateS3ObjectKey",
+        "ParameterValue": "${Path}/Nds-Cync-Lambda-Deployment-Template.yml"
+    },
+    {
+        "ParameterKey": "BuildSpecS3ObjectKey",
+        "ParameterValue": "${Path}/buildspec.yml"
+    },
+    {
+        "ParameterKey": "TemplateConfigurationFileS3ObjectKey",
+        "ParameterValue": "${Path}/Pipeline/Config.json"
+    },
+    {
+        "ParameterKey": "S3ObjectRetentionDays",
+        "ParameterValue": "30"
+    },
+    {
+        "ParameterKey": "GithubLosPkgTokenSecretName",
+        "ParameterValue": "Prefix-StgSqlUp-GithubToken"
+    },
+    {
+        "ParameterKey": "EnvironmentVariableRequired",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "AutoDeployment",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "CodeBuildImage",
+        "ParameterValue": "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    },
+    {
+        "ParameterKey": "LogsStatus",
+        "ParameterValue": "ENABLED"
+    },
+    {
+        "ParameterKey": "ServiceName",
+        "ParameterValue": "Common-Ecs-Deployment-Lambda"
+    },
+    {
+        "ParameterKey": "ArtifactBucketCreation",
+        "ParameterValue": "false,buketname"
+    },
+    {
+        "ParameterKey": "MigratorLambdaName",
+        "ParameterValue": "migrator-lambda"
+    },
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "MigratorBuildSpecS3ObjectKey",
+        "ParameterValue": "foldername/buildspec.yml"
+    },
+    {
+        "ParameterKey": "GithubSecretsName",
+        "ParameterValue": "Prefix-StgSqlUp-Infra-Github-Secret"
+    },
+    {
+        "ParameterKey": "ApplicationID",
+        "ParameterValue": "Common-Ecs-Deployment-Lambda"
+    },
+    {
+        "ParameterKey": "GithubSecretsTokenKey",
+        "ParameterValue": "*****"
+    },
+    {
+        "ParameterKey": "ManualApprovalStage",
+        "ParameterValue": "false"
+    }
+]

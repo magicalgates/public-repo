@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Template creates Ecr repository
+Parameters:
+  RepositoryName:
+    Type: String
+  ApplicationId:
+    Type: String
+  ScanOnPush:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+      
+Resources:
+  ECRRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: !Ref ScanOnPush
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+                {
+                    "rulePriority": 1,
+                    "description": "Only keep last 5 images",
+                    "selection": {
+                      "tagStatus": "any",
+                      "countType": "imageCountMoreThan",
+                      "countNumber": 5
+                  },
+                  "action": { "type": "expire" }
+                }]
+              }
+        RegistryId: !Sub '${AWS::AccountId}'
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              -  ecr:BatchCheckLayerAvailability
+              -  ecr:BatchGetImage
+              -  ecr:CompleteLayerUpload
+              -  ecr:DeleteRepositoryPolicy
+              -  ecr:DescribeImages
+              -  ecr:GetDownloadUrlForLayer
+              -  ecr:GetRepositoryPolicy
+              -  ecr:InitiateLayerUpload
+              -  ecr:ListImages
+              -  ecr:PutImage
+              -  ecr:SetRepositoryPolicy
+              -  ecr:UploadLayerPart
+      Tags: 
+          - Key: Name
+            Value: !Ref RepositoryName
+          - Key: ApplicationRole
+            Value:  !Sub '${ApplicationId}-Ecrepo'
+Outputs:
+  Arn:
+    Value: !GetAtt 
+      - ECRRepository
+      - Arn

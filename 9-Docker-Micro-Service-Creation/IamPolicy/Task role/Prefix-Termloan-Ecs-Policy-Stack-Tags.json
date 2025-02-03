@@ -1,0 +1,34 @@
+[
+    {
+        "Key": "ApplicationId",
+        "Value": "Ms"
+    },
+    {
+        "Key": "ApplicationRole",
+        "Value": "Ms-Ms-Cfn"
+    },
+    {
+        "Key": "Owner",
+        "Value": "Yash"
+    },
+    {
+        "Key": "Environment",
+        "Value": "StgSqlUp"
+    },
+    {
+        "Key": "Project",
+        "Value": "Prefix"
+    },
+    {
+        "Key": "InfoClassification",
+        "Value": "Internal"
+    },
+    {
+        "Key": "Name",
+        "Value": "Prefix-StgSqlUp-Ms-Ecs-Policy-Stack"
+    },
+    {
+        "Key": "Compliance",
+        "Value": "SOC2"
+    }
+]

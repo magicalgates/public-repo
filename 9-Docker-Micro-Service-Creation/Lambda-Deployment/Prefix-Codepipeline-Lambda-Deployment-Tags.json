@@ -1,0 +1,30 @@
+[
+    {
+        "Key": "ApplicationId",
+        "Value": "Common"
+    },
+    {
+        "Key": "ApplicationRole",
+        "Value": "Common-Cfn"
+    },
+    {
+        "Key": "Name",
+        "Value": "Prefix-StgSqlUp-Common-Ecs-Lambda-Deployment-Stack"
+    },
+    {
+        "Key": "Owner",
+        "Value": "Yash"
+    },
+    {
+        "Key": "Environment",
+        "Value": "StgSqlUp"
+    },
+    {
+        "Key": "Project",
+        "Value": "Prefix"
+    },
+    {
+        "Key": "InfoClassification",
+        "Value": "Internal"
+    }
+]

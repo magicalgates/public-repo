@@ -1,0 +1,394 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates new ECS Cluster
+Parameters:
+  ResourceNamePrefix:
+    Type: String
+    Description: Enter a value that will be prefixed to the AWS resources created through this stack.
+    Default: 
+
+  Service:
+    Type: String
+    Description: Enter the service name/application name this will be appended for resource names.
+
+  Environment:
+    Type: String
+    Description: Specify the Environment Name.   
+
+  ApplicationID:
+    Type: String
+    Description: Enter the value for tag ApplicationId
+
+  ApplicationRole:
+    Type: String
+    Description: Enter the value for tag ApplicationRole
+  
+  State:
+    Type: String
+    Description: Enter the value for tag State
+    Default: green
+
+  InstanceType:
+    Type: String
+    Description: Enter the instance type to be used for the application.
+    Default: t3.micro
+
+  EC2ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: Enter the AMI Id used for the application.
+    Default: ''
+
+  EBSVolumeDeviceName:
+    Type: String
+    Description: Enter the EBS volume device name (for example, /dev/sdh or xvdh)
+    Default: /dev/xvda
+
+  EBSVolumeSize:
+    Type: Number
+    Default: '30'
+    Description: Specify EBS Volume Size
+
+  EBSVolumeType:
+    Type: String
+    AllowedValues:
+      - gp3
+    Description: Specify EBS Volume Type
+    Default: gp3
+
+  MinSize:
+    Type: Number
+    MinValue: 0
+    MaxValue: 5
+    Description: Enter the minimum scaling value for autoscaling group.
+    Default: 1
+
+  MaxSize:
+    Type: Number
+    MinValue: 0
+    MaxValue: 5
+    Description: Enter the maximum scaling value for autoscaling group.
+    Default: 1
+
+  DesiredSize:
+    Type: Number
+    MinValue: 0
+    MaxValue: 5
+    Description: Enter the desired value for autoscaling group.
+    Default: 1  
+
+  TerminationPolicies:
+    Type: List<String>
+    AllowedValues:
+      - Default
+      - AllocationStrategy
+      - ClosestToNextInstanceHour
+      - NewestInstance
+      - OldestInstance
+      - OldestLaunchConfiguration
+      - OldestLaunchTemplate
+    Description: Select the termination policies for the autoscaling group.
+    Default: OldestInstance
+
+  HttpTokens:
+    Type: String
+    Description: |
+      Select optional to set IMDSv2 as optional, you can choose to retrieve instance metadata with or without a session token in your request.
+      Select required to set IMDSv2 as required, you must send a session token with any metadata reterival requests.
+    Default: required
+    AllowedValues:
+      - optional
+      - required
+
+  HttpEndpoint:
+    Type: String
+    Description: Select enabled or disabled to enable/disbale the HTTP metadata endpoint on your instances.
+    AllowedValues:
+      - enabled
+      - disabled
+    Default: enabled
+
+  InstanceMetadataTags:
+    Type: String
+    Description: |
+      Select enabled to allow access to instance tags from the instance metadata.
+      Select disbaled to turn off access to instance tags from the instance metadata.
+    AllowedValues:
+      - enabled
+      - disabled
+    Default: enabled
+
+  Project:
+    Type: String
+    Description: Enter the value for tag Project.
+    AllowedValues:
+      - Prefix
+
+  InfoClassification:
+    Type: String
+    Description: Enter the value for tag InfoClassification.
+    AllowedValues:
+      - Internal
+      
+  ASGScheduleStopDesired:
+    Type: Number
+    Default: 0
+    Description: |
+      The desired capacity is the initial capacity of the Auto Scaling group after the scheduled action runs and the capacity it attempts to maintain.
+      It can scale beyond this capacity if you add more scaling conditions.
+
+  ASGScheduleStopMinCount:
+    Type: Number
+    Default: 0
+    Description: Enter the minimum size of the Auto Scaling group scale in scheduled action.
+
+  ASGScheduleStopMaxCount:
+    Type: Number
+    Default: 0
+    Description: Enter the maximum size of the Auto Scaling group scale in scheduled action.
+
+  ASGScheduleStopCron:
+    Type: String
+    Description: |
+      Enter the recurring schedule for this action. 
+      This format consists of five fields separated by white spaces: [Minute] [Hour] [Day_of_Month] [Month_of_Year] [Day_of_Week]. 
+      The value must be in quotes (for example, "30 0 1 1,6,12 *").
+
+  ASGScheduleStartDesired:
+    Type: Number
+    Default: 0
+    Description: |
+      The desired capacity is the initial capacity of the Auto Scaling group after the scheduled action runs and the capacity it attempts to maintain.
+      It can scale beyond this capacity if you add more scaling conditions.
+
+  ASGScheduleStartMinCount:
+    Type: Number
+    Default: 0
+    Description: Enter the minimum size of the Auto Scaling group scale out scheduled action.
+
+  ASGScheduleStartMaxCount:
+    Type: Number
+    Default: 0
+    Description: Enter the maximum size of the Auto Scaling group scale out scheduled action.
+
+  ASGScheduleStartCron:
+    Type: String
+    Description: |
+      Enter the recurring schedule for this action. 
+      This format consists of five fields separated by white spaces: [Minute] [Hour] [Day_of_Month] [Month_of_Year] [Day_of_Week]. 
+      The value must be in quotes (for example, "30 0 1 1,6,12 *").
+      
+  CreateScheduledActions:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Description: Select true to create scheduled actions for autoscaing group.
+    Default: false
+    
+  Owner:
+    Type: String
+    Description: Enter the value for tag Owner.
+    AllowedValues:
+      - Nds
+
+  SSMParamRequired:
+    Type: String 
+    Default: false
+    AllowedValues:
+      - true
+      - false
+    Description: Specify true to create an SSM Parameter Store entry containing the S3 bucket name. Enter false to skip this step
+
+  ParameterStoreKey:
+    Type: String
+    Description: Enter the name to create parameter store for the cluster
+    
+Conditions:
+  CreateScheduleAction: !Equals [ !Ref CreateScheduledActions, 'true' ]
+  IsRequiredSSMParam: !Equals [ "true" , !Ref SSMParamRequired ]
+  
+Resources:
+  LaunchTemplate:
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: !Ref EBSVolumeDeviceName
+            Ebs:
+              VolumeSize: !Ref EBSVolumeSize
+              DeleteOnTermination: 'true'
+              VolumeType: !Ref EBSVolumeType
+              Encrypted: 'true'
+        InstanceType: !Ref InstanceType
+        DisableApiTermination: 'false'
+        KeyName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/KeyPair}}'
+        ImageId: !Ref EC2ImageId
+        IamInstanceProfile:
+          Name: !Ref InstanceProfile
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+        SecurityGroupIds:
+          - Fn::ImportValue:
+              !Sub '${ResourceNamePrefix}-${Environment}-Common-Ec2-Sg'
+          - Fn::ImportValue:
+              !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Sg'
+        MetadataOptions:
+          HttpTokens: !Ref HttpTokens
+          HttpEndpoint: !Ref HttpEndpoint
+          InstanceMetadataTags: !Ref InstanceMetadataTags
+        TagSpecifications:
+        - ResourceType: instance
+          Tags:
+            - Key: Name
+              Value: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Srvr'
+            - Key: ApplicationRole
+              Value: !Sub '${ApplicationID}-${ApplicationRole}-Srvr'
+        - ResourceType: volume
+          Tags:
+            - Key: Name
+              Value: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Srvr-Volume'
+            - Key: ApplicationRole
+              Value: !Sub '${ApplicationID}-${ApplicationRole}-Vol'
+        - ResourceType: network-interface
+          Tags:
+            - Key: Name
+              Value: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Srvr-Eni'
+            - Key: ApplicationRole
+              Value: !Sub '${ApplicationID}-${ApplicationRole}-Eni'
+      LaunchTemplateName: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Lt'
+      TagSpecifications:
+      - ResourceType: launch-template
+        Tags: 
+          - Key: Name
+            Value: !Sub '${ResourceNamePrefix}-${Environment}-${ApplicationID}-${ApplicationRole}-${Service}-Lt'
+          - Key: ApplicationRole
+            Value: !Sub '${ApplicationID}-${ApplicationRole}-Lt'
+
+  InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles: 
+        - !Ref EC2IAMRole
+
+  EC2IAMRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Role'
+      ManagedPolicyArns:
+        - !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/SessionMgrPolicy}}'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/${ResourceNamePrefix}-${Environment}-Ec2-Policy'
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/${ResourceNamePrefix}-${Environment}-EcsCluster-Ec2-Policy'
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Role'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-${ApplicationRole}-Role'
+  ScheduledActionScaleIn:
+    Type: AWS::AutoScaling::ScheduledAction
+    Condition: CreateScheduleAction
+    Properties: 
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      DesiredCapacity: !Ref ASGScheduleStopDesired
+      MaxSize: !Ref ASGScheduleStopMaxCount
+      MinSize: !Ref ASGScheduleStopMinCount
+      Recurrence: !Ref ASGScheduleStopCron
+
+  ScheduledActionScaleOut:
+    Type: AWS::AutoScaling::ScheduledAction
+    Condition: CreateScheduleAction
+    Properties: 
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      DesiredCapacity: !Ref ASGScheduleStartDesired
+      MaxSize: !Ref ASGScheduleStartMaxCount
+      MinSize: !Ref ASGScheduleStartMinCount
+      Recurrence: !Ref ASGScheduleStartCron
+
+  AutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt 
+          - LaunchTemplate
+          - LatestVersionNumber
+      AutoScalingGroupName: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Asg' 
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredSize
+      HealthCheckGracePeriod: '300'
+      HealthCheckType: EC2
+      TerminationPolicies: !Ref TerminationPolicies
+      VPCZoneIdentifier:
+        - Fn::ImportValue:
+            !Sub '${ResourceNamePrefix}-${Environment}-App-Private-SubnetIds'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${Environment}-${Service}-Asg'
+          PropagateAtLaunch: "false"
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-${ApplicationRole}-Asg'
+          PropagateAtLaunch: "false"
+        - Key: State
+          Value: !Ref State
+          PropagateAtLaunch: "true"
+        - Key: Project
+          Value: !Ref Project
+          PropagateAtLaunch: "true"
+        - Key: Owner
+          Value: !Ref Owner
+          PropagateAtLaunch: "true"
+        - Key: InfoClassification
+          Value: !Ref InfoClassification
+          PropagateAtLaunch: "true"
+        - Key: ApplicationId
+          Value: !Ref ApplicationID
+          PropagateAtLaunch: "true"
+        - Key: Environment
+          Value: !Ref Environment
+          PropagateAtLaunch: "true"
+
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: !Sub '${ResourceNamePrefix}-${Environment}-${Service}'
+      Tags: 
+        - Key: Name
+          Value: !Sub '${ResourceNamePrefix}-${Environment}-${Service}'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-Eclstr'
+
+  ClusterParameterStore:
+    Type: AWS::SSM::Parameter
+    Condition: IsRequiredSSMParam
+    Properties:
+      Description: !Sub 'In this parameter we are storing value of ClusterName.'
+      Name: !Sub '/CS/AppInfra/${Environment}/${ParameterStoreKey}'
+      Tier: Standard
+      Type: String
+      Value: !Ref ECSCluster 
+      Tags:
+        Name: !Sub '/CS/AppInfra/${Environment}/${ParameterStoreKey}'
+        ApplicationRole: Common-SSM  
+        
+Outputs:
+  ClusterName:
+    Description: ECS cluster name
+    Value: !Ref ECSCluster
+
+  AutoscalingGroup:
+    Description: Autoscaling group name
+    Value: !Ref AutoScalingGroup

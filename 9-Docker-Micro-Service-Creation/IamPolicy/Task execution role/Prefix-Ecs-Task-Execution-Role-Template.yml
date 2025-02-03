@@ -1,0 +1,85 @@
+# ECS task execution roles grant the ECS agents permission to make AWS API calls 
+# who are responsible for managing the tasks in the cluster.
+
+# This means the task is able to send container logs to CloudWatch or pull a container image from Amazon ECR.
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: This template creates a Ecs task execution IAM role
+
+Parameters:
+  ResourceNamePrefix:
+    Description: Enter the value to be prefixed with the resources created.
+    Type: String
+    Default: Nds-Cync
+    AllowedValues:
+      - Nds-Cync
+
+  Environment:
+    Description: Name your Environment according to your need.
+    Type: String
+    AllowedValues:
+      - StgSqlUp
+      - Dev
+
+  ApplicationId:
+    Type: String
+    Description: Enter the value for tag ApplicationID.
+
+  SecretName:
+    Type: String
+    Description: Enter the value using SecretName.
+
+Resources:
+  EcsTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Ecs-TaskDefinition-Role'
+      Tags:
+        - Key: Name
+          Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Ecs-TaskDefinition-Role'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationId}-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Action: 'sts:AssumeRole'
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Ecs-TaskDefinition-Policy'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ec2:DescribeInstances
+                  - ecs:Poll
+                  - ecs:DiscoverPollEndpoint
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-*:log-stream:*
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:ListSecrets
+                Resource:
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}-*
+
+Outputs:
+  EcsTaskExecutionRoleArn:
+    Description: Ecs Task Execution IAM Role Arn
+    Value: !GetAtt EcsTaskExecutionRole.Arn
+    Export:
+      Name: !Sub '${ResourceNamePrefix}-${Environment}-Ecs-TaskDefinition-Role'

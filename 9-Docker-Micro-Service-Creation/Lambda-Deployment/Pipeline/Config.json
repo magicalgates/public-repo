@@ -1,0 +1,28 @@
+{
+    "Parameters": {
+        "Timeout": "300",
+        "InstanceId": "ansible_instance_id",
+        "ResourceNamePrefix": "Prefix",
+        "Environment": "StgSqlUp",
+        "Runtime": "python3.12",
+        "WorkingDir": "/home/ubuntu/cync-devops-ansible/jenkins_sh_files/jenkin_jobs_files/cync_qa_automation",
+        "LambdaMemory": "128",
+        "LogGroupName": "Prefix-StgSqlUp-Common-Ecs-Deployment-Lambda-CodeBuild-Logs",
+        "ClusterName": "Prefix-StgSqlUp-Common-One-Ecs-Cluster",
+        "HandlerName": "index.lambda_handler",
+        "Application": "cash_application_revamp",
+        "ApplicationId": "Common",
+        "EnvName": "stgsqlup",
+        "CommonSGExportName": "Prefix-StgSqlUp-Common-Lambda-Sg"
+    },
+    "Tags": {
+        "Name": "Prefix-StgSqlUp-Common-Ecs-Deployment-Lambda-Stack",
+        "Owner": "Nds",
+        "Environment": "StgSqlUp",
+        "Project": "Prefix",
+        "InfoClassification": "Internal",
+        "ApplicationId": "Common",
+        "ApplicationRole": "Common-Cfn",
+        "Automation": "True"
+    }
+}

@@ -1,0 +1,347 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template creates ECS services
+Parameters:
+  ResourceNamePrefix:
+    Type: String
+    Default: Nds-Cync
+    Description: Enter prefix for Resource Names
+  Service:
+    Type: String
+    Description: Enter the service name/application name this will be appended for resource names.
+  Environment:  
+    Type: String
+    Description: Specify the Environment Name.
+    Default: StgSqlUp
+  ApplicationID:
+    Type: String
+    Description: Enter the value for tag ApplicationID
+    Default: Rw
+    AllowedValues:
+    - Auth
+    - Rw
+    - CA
+    - Ca
+    - TL
+    - TL-Jobs
+    - Cssp
+    - DMS
+    - Abl-Reporting
+  TGPort:
+    Type: String
+    Description: Enter the port number for the application to receive traffic.
+    Default: 3009
+  TGProtocol:
+    Type: String
+    Description: Enter the target group protocol to use for routing traffic to the targets.
+    Default: TCP
+  LoadBalancerPort:
+    Type: String
+    Default: 3009
+    Description: Enter the loadbalancer port.
+  LoadBalancerProtocol:
+    Type: String
+    Default: TCP
+    Description: Enter the loadbalancer protocol.
+  DesiredCount:
+    Type: Number
+    Default: 0
+    Description: How many copies of the service task to run
+  TaskNetworkMode:
+    Type: String
+    Description: >-
+      The Docker networking mode to use for the containers in the task. The
+      valid values are none, bridge and host
+    Default: bridge
+    AllowedValues:
+      - bridge
+      - host  
+  ContainerPort:
+    Type: Number
+    Default: 3009
+    Description: 'Specify the port on which the container runs'
+  ContainerCpuSize:
+    Type: String 
+    Default: 2048  
+    Description: Enter the ECS container cpu size to be mentioned in task definition.
+  ContainerMemorySize:
+    Type: String 
+    Default: 6000  
+    Description: Enter the ECS container memory size to be mentioned in task definition.
+  ContainerEntryPointRequired:
+    Type: String 
+    Default: false
+    AllowedValues:
+      - true
+      - false
+    Description: Select true/false to add an container entry point.
+  EntryPointValue:
+    Type: CommaDelimitedList 
+    Default: 'sh,-c,./start_docker.sh'
+    Description: Enter the value for the container entry point.
+  TargetGroup:
+    Type: String 
+    Default: true
+    AllowedValues:
+      - true
+      - false
+    Description: Select true/false to create a target group and listener Rule. 
+  LBListener:
+    Type: String 
+    Default: false
+    AllowedValues:
+      - true
+      - false
+    Description: Select true/false to create a listner rule for loadbalancer. 
+  LoadBalancerListenerPriority:
+    Type: Number
+    Default: 1
+    Description: Enter the loadbalancer listener priority for the header config rule.
+  HostHeaderConfigValue:
+    Type: String
+    Default: 'www.example.com'
+    Description: Enter the host name for the loadbalancer lister rule with header config.
+  TDVolumes:
+    Type: CommaDelimitedList
+    Description: Enter the container paths. Eg- /path,/temp,N:N,N:N,N:N
+    Default: '/cync-abl-reporting/log'
+  MountVolumeName:
+    Type: String
+    Default: cync-abl-reporting
+    Description: Specify the Volume name if ContainerVolumesRequired parameter is true.
+  HostMountpath:
+    Type: String
+    Default: /var/log/cync-abl-reporting-log
+    Description: Specify host path to mount if ContainerVolumesRequired parameter is true.
+  TGHealthCheckPath:
+    Type: String
+    Default: /
+    Description: Enter the Target Group health check path
+  TGHealthCheckSuccessCode:
+    Type: String
+    Default: 200
+    Description: Enter the Target Group health check success code
+  ContainerVolumesRequired:
+    Type: String 
+    Default: true
+    AllowedValues:
+      - true
+      - false
+    Description: Select true/false to add a container volume.
+  ProfileName:
+    Type: String
+    Description: Enter the environment variable name
+    Default: stgsqlupnew
+  ECRRepoName:
+    Type: String
+    Description: Enter the ecr repository name
+    Default: nds-cync-stgsqlup-report-writer-ecr-repo
+  TermloanFolderName:
+    Type: String
+    Default: nds-cync-stgsqlup-report-writer-ecr-repo
+    Description: Enter the folder name
+  SecretName:
+    Type: String
+    Default: SecretName
+  LoadBalancerListenerArn:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:ap-south-1:148654267025:listener/app/Nds-Cync-StgSqlUp-Pvt-App-Lb/2e8cc674425b968d/988966df4ce80bdf
+    Description: Enter the existing loadbalancer arn. 
+Conditions:
+  EntryPoint: !Equals [ "true" , !Ref ContainerEntryPointRequired ]
+  Volumes: !Equals [ "true" , !Ref ContainerVolumesRequired ]
+  
+  TDVolume0Exist: !Equals [!Select [ 0, !Ref TDVolumes ], "N"]
+  
+  TargetGroup: !Equals [ "true" , !Ref TargetGroup ]
+  LBListener: !Equals [ "true" , !Ref LBListener ]
+  CertificateRequired: !Equals [ !Ref LoadBalancerProtocol, 'HTTPS' ]
+
+Resources:
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}-Role'
+      Tags:
+        - Key: Name
+          Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}-Role'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-Svc-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Action: 'sts:AssumeRole'
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+        - !Sub 'arn:aws:iam::${AWS::AccountId}:policy/${ResourceNamePrefix}-${Environment}-${ApplicationID}-Svc-Policy'
+  
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-Lg'
+      RetentionInDays: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/CloudwatchLogsRetention}}'
+      Tags:
+        - Key: Name
+          Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-Lg'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-Svc-Lg'
+
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}-Td'
+      Tags:
+        - Key: Name
+          Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}-Td'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-Svc-Td'
+      RequiresCompatibilities:
+        - EC2
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ResourceNamePrefix}-${Environment}-Ecs-TaskDefinition-Role'
+      NetworkMode: !Ref TaskNetworkMode
+      Cpu: !Ref ContainerCpuSize
+      Memory: !Ref ContainerMemorySize
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      Volumes: 
+        - !If 
+          - Volumes
+          - Host: 
+              SourcePath: !Ref HostMountpath
+            Name: !Ref MountVolumeName
+          - !Ref 'AWS::NoValue'
+      ContainerDefinitions:
+        - Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest'
+          Name: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc'
+          Cpu: !Ref ContainerCpuSize
+          Memory: !Ref ContainerMemorySize
+          EntryPoint: !If [ EntryPoint, !Ref EntryPointValue, !Ref 'AWS::NoValue' ]
+          Environment:
+            - Name: ARTIFACT_BUCKET
+              Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/AutomationArtifactsBucketName}}/${TermloanFolderName}'
+            - Name: RDS_CERTIFICATE_BUCKET  
+              Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ConfigBucketName}}'
+            - Name: PARTICIPATION_APP_LAMBDA_ARN
+              Value: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Participation-Loan-App-Lambda
+            - Name: PROFILE_NAME
+              Value: !Ref ProfileName
+          Secrets:
+            - Name: DB_UNAME
+              ValueFrom: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}:db_username::'
+            - Name: DB_PWD  
+              ValueFrom: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}:db_password::'
+            - Name: DB_ENDPOINT
+              ValueFrom: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}:db_url::'
+            - Name: DATABASE_CONNECTION_URL
+              ValueFrom: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}:database_connection_url::'
+            - Name: KAFKA_ENDPOINT
+              ValueFrom: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretName}:kafka_endpoint::'
+          MountPoints:
+          - !If
+            - TDVolume0Exist
+            - !Ref "AWS::NoValue"
+            - ContainerPath: !Select [ 0, !Ref TDVolumes ] 
+              ReadOnly: false
+              SourceVolume: !Ref MountVolumeName
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Sub '${AWS::Region}'
+              awslogs-group: !Ref LogGroup
+  
+  EcsTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Condition: TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: !Ref TGProtocol
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 5
+      HealthCheckPath: !Ref TGHealthCheckPath
+      Name: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}-Tg'
+      Port: !Ref TGPort
+      Protocol: !Ref TGProtocol
+      VpcId:
+        Fn::ImportValue:
+          !Sub '${ResourceNamePrefix}-${Environment}-VpcId'
+      Matcher: 
+        HttpCode: !Ref TGHealthCheckSuccessCode
+      Tags:
+        - Key: Name
+          Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}-Tg'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-Svc-Tg'
+  
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: LBListener
+    Properties:
+      DefaultActions:
+       - Type: "forward"
+         ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref EcsTargetGroup
+                Weight: 1
+      LoadBalancerArn: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/application-private-LB}}'
+      Port: !Ref LoadBalancerPort
+      Protocol: !Ref LoadBalancerProtocol
+      Certificates: 
+        - !If 
+          - CertificateRequired
+          - CertificateArn: !Sub 'arn:aws:acm:${AWS::Region}:${AWS::AccountId}:certificate/{{resolve:ssm:/CS/AppInfra/${Environment}/CertificateIdentifier}}'
+          - !Ref 'AWS::NoValue'
+  
+  ListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Condition: TargetGroup
+    Properties:
+      Actions:
+        - Type: forward
+          ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref EcsTargetGroup
+                Weight: 1
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Ref HostHeaderConfigValue
+      ListenerArn: !If [ LBListener, !Ref LoadBalancerListener, !Ref LoadBalancerListenerArn ]
+      Priority: !Ref LoadBalancerListenerPriority
+  
+  ECSService:
+    Type: 'AWS::ECS::Service'
+    DependsOn:
+      - LBReady
+    Properties:
+      ServiceName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}'
+      Cluster: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/EcsClusterName}}'
+      LoadBalancers:
+        - ContainerName: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc'
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !If [ TargetGroup, !Ref EcsTargetGroup, !Ref AWS::NoValue ]
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      Tags:
+        - Key: Name
+          Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ApplicationID}-Svc-${Service}'
+        - Key: ApplicationRole
+          Value: !Sub '${ApplicationID}-Svc-Ecsvc'
+
+  LBReady:
+    Type: AWS::CloudFormation::WaitConditionHandle
+    Metadata:
+      ListenerReady: !If [ LBListener, !Ref LoadBalancerListener, !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/application-private-LB}}' ]
+
+Outputs:  
+  ECSServiceName:
+    Description: The ECS Service name
+    Value: !GetAtt ECSService.Name

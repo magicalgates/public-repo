@@ -1,0 +1,14 @@
+[
+    {
+        "ParameterKey": "RepositoryName",
+        "ParameterValue": "prefix-stgsqlup-ms-ecr-repo"
+    },
+    {
+        "ParameterKey": "ApplicationId",
+        "ParameterValue": "Ms"
+    },
+    {
+        "ParameterKey": "ScanOnPush",
+        "ParameterValue": "true"
+    }
+]

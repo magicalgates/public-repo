@@ -1,0 +1,313 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'AWS CloudFormation Template: Creates a codepipeline for Microservices'
+Parameters:
+  RepositoryName:
+    Description: The name of the Github repo
+    Type: String
+    Default: nds-cync-dev-microservice
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+  RepositoryBranch:
+    Description: The name of the branch for the Github repo
+    Type: String
+    Default: release_1.0.0.x
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+  Image:
+    Type: String
+    Default: 'aws/codebuild/standard:3.0'
+    Description: AWS CodeBuild Standard Image
+    AllowedValues:
+      - 'aws/codebuild/standard:3.0'
+      - 'aws/codebuild/standard:4.0'
+      - 'aws/codebuild/standard:5.0'
+      - 'aws/codebuild/standard:6.0'
+      - 'aws/codebuild/standard:7.0'
+  GitHubSecretName:
+    Type: String
+    Default: NDS-CYNC-STAGING-GithubToken
+    Description: The name of the branch for the Githubrepo
+    NoEcho: true
+  GitHubSecretKey:
+    Type: String
+    Default: GithubToken
+    NoEcho: true
+  FunctionName:
+    Type: String
+    Default: Dev-Termloan-MS-Git-Lambda
+    Description: Enter the lambda function name
+  EnvironmentType:
+    Type: String
+    Default: LINUX_CONTAINER
+    Description: Enter the environment type for code build
+    AllowedValues:
+      - LINUX_CONTAINER
+      - WINDOWS_CONTAINER
+  EnvironmentComputeType:
+    Type: String
+    Default: BUILD_GENERAL1_SMALL
+    Description: Enter the environment compute type for code build
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - ' BUILD_GENERAL1_LARGE'
+  ResourceNamePrefix:
+    Type: String
+    Default: NDS-CYNC
+    Description: Enter prefix for Resource Names
+  Environment:
+    Type: String
+    Description: Environment type for naming convention
+    Default: StgSqlUp
+  ApplicationID:
+    Type: String
+    Description: Enter the value for tag ApplicationID
+    Default: Termloan
+  ServiceName:
+    Type: String
+    Description: Enter name for Service
+  ImageRepoValue:
+    Type: String
+    Default: nds-cync-dev-termloan-ms
+  ImageTagValue:
+    Type: String
+    Default: latest
+  Envvaluestaticcodebucket:
+    Type: String
+    Default: cync-code-reports
+  Envvaluescripts3path:
+    Type: String
+    Default: stgsqlup/ms-term-loan
+  Authentication:
+    Type: String
+    Default: GITHUB_HMAC
+    AllowedValues:
+      - GITHUB_HMAC
+      - IP
+      - UNAUTHENTICATED
+  JsonPath:
+    Type: String
+    Default: $.ref
+  MatchEquals:
+    Type: String
+    Default: 'refs/heads/{Branch}'
+  UserParameters:
+    Type: String
+    Default: ''
+    Description: Enter the lambda user parameters.
+  AutoDeployment:
+    Type: String
+    Description: Do you want to auto deploy the git repo changes for the pipeline?
+    AllowedValues:
+      - true
+      - false
+    Default: false
+  BuildSpecName:
+    Type: String
+    Default: ''
+    Description: Enter the buildspec name.
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Webhook Details
+        Parameters:
+          - JsonPath
+          - MatchEquals
+          - Authentication
+      - Label:
+          default: Github Details
+        Parameters:
+          - RepositoryName
+          - RepositoryBranch
+          - GitHubOwner
+      - Label:
+          default: CodeBuild Details
+        Parameters:
+          - EnvironmentType
+          - EnvironmentComputeType
+          - Image
+          - Subnets
+          - SecurityGroups
+          - VpcId
+      - Label:
+          default: CodeBuild Environment Details
+        Parameters:
+          - ImageTagValue
+          - ImageRepoValue
+          - Envvaluescripts3path
+          - Envvaluestaticcodebucket
+      - Label:
+          default: CodeDeploy Details
+        Parameters:
+          - FunctionName
+      - Label:
+          default: CodePipeline Details
+        Parameters:
+          - UserParameters
+Conditions:
+  ShouldCreateWebhook: !Equals 
+    - true
+    - !Ref AutoDeployment
+Resources:
+  Webhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Condition: ShouldCreateWebhook
+    Properties:
+      AuthenticationConfiguration:
+        SecretToken: !Sub >-
+          {{resolve:secretsmanager:${GitHubSecretName}:SecretString:${GitHubSecretKey}}}
+      Filters:
+        - JsonPath: !Ref JsonPath
+          MatchEquals: !Ref MatchEquals
+      Authentication: !Ref Authentication
+      TargetPipeline: !Ref CodePipeline
+      TargetAction: Source
+      Name: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-Webhook'
+      TargetPipelineVersion: !GetAtt 
+        - CodePipeline
+        - Version
+      RegisterWithThirdParty: 'true'
+  CodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-CodeBuild'
+      Description: Docker Build stage
+      ServiceRole: !Sub 'arn:aws:iam::${AWS::AccountId}:role/{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Common-Codebuild-Role'
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-CodeBuild'
+        - Key: ApplicationRole
+          Value:
+            Fn::Sub: '${ApplicationID}-Cbld'
+      Artifacts:
+        Type: no_artifacts
+      Environment:
+        Type: !Ref EnvironmentType
+        ComputeType: !Ref EnvironmentComputeType
+        Image: !Ref Image
+        PrivilegedMode: 'true'
+        EnvironmentVariables:
+          - Name: SCRIPT_S3_PATH
+            Type: PLAINTEXT
+            Value: !Ref Envvaluescripts3path
+          - Name: RDS_CERTIFICATE_BUCKET
+            Type: PLAINTEXT
+            Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ConfigBucketName}}'
+          - Name: DEVOPS_SCRIPTS_BUCKET
+            Type: PLAINTEXT
+            Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/DevopsScriptBucket}}'
+          - Name: IMAGE_REPO_NAME
+            Type: PLAINTEXT
+            Value: !Ref ImageRepoValue
+          - Name: GITHUB_BRANCH_NAME
+            Type: PLAINTEXT
+            Value: !Ref RepositoryBranch
+          - Name: IMAGE_TAG
+            Type: PLAINTEXT
+            Value: !Ref ImageTagValue
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value: !Sub '${AWS::AccountId}'
+          - Name: ARTIFACT_BUCKET
+            Type: PLAINTEXT
+            Value: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/AutomationArtifactsBucketName}}'
+          - Name: STATIC_CODE_REPORTS_BUCKET
+            Type: PLAINTEXT
+            Value: !Ref Envvaluestaticcodebucket
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue:
+             !Sub '${ResourceNamePrefix}-${Environment}-Codepipeline-Deployment-Sg'
+        Subnets:
+          - Fn::ImportValue:
+             !Sub '${ResourceNamePrefix}-${Environment}-App-Private-SubnetId1'
+          - Fn::ImportValue:
+              !Sub '${ResourceNamePrefix}-${Environment}-App-Private-SubnetId2'
+          - Fn::ImportValue:
+              !Sub '${ResourceNamePrefix}-${Environment}-App-Private-SubnetId3'
+        VpcId:
+          Fn::ImportValue:
+            !Sub '${ResourceNamePrefix}-${Environment}-VpcId'
+      Source:
+        BuildSpec:
+          Fn::Sub: 'arn:aws:s3:::{{resolve:ssm:/CS/AppInfra/${Environment}/DevopsScriptBucket}}/${BuildSpecName}'
+        Location: 
+          Fn::Sub: 'https://github.com/{{resolve:ssm:/CS/AppInfra/${Environment}/GitHubOwner}}/${RepositoryName}.git'
+        Type: GITHUB
+      TimeoutInMinutes: 60
+  CodePipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      # Name: !Sub '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-Ecs-Codepipeline'
+      RoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-Common-Codepipeline-Role'
+      Tags:
+        - Key: Name
+          Value: 
+             Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-CodePipeline'
+        - Key: ApplicationRole
+          Value:
+             Fn::Sub: '${ApplicationID}-Pipeline'
+      Name: 
+         Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-CodePipeline'
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              InputArtifacts: []
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: '1'
+                Provider: GitHub
+              OutputArtifacts:
+                - Name:
+                    Fn::Sub: '${AWS::StackName}-Source'
+              Configuration:
+                Owner:
+                  Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/GitHubOwner}}'
+                OAuthToken:
+                  Fn::Sub: '{{resolve:secretsmanager:${GitHubSecretName}:SecretString:${GitHubSecretKey}}}'
+                Branch: !Ref RepositoryBranch
+                Repo: !Ref RepositoryName
+                PollForSourceChanges: 'false'
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - InputArtifacts:
+                - Name:
+                    Fn::Sub: '${AWS::StackName}-Source'
+              Name: 
+                Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-CodeBuild'
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: !Sub '${AWS::StackName}-BuildArtifact'
+              Configuration:
+                ProjectName: 
+                  Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/ResourceNamePrefix}}-{{resolve:ssm:/CS/AppInfra/${Environment}/Environment}}-${ServiceName}-CodeBuild'
+              RunOrder: 1
+        - Name: LambdaDeploy
+          Actions:
+            - InputArtifacts:
+                - Name: 
+                    Fn::Sub: '${AWS::StackName}-BuildArtifact'
+              Name: !Ref FunctionName
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Version: '1'
+                Provider: Lambda
+              OutputArtifacts: []
+              Configuration:
+                FunctionName: !Ref FunctionName
+                UserParameters: !Ref UserParameters
+              RunOrder: 1
+      ArtifactStore:
+        Type: S3
+        Location:
+          Fn::Sub: '{{resolve:ssm:/CS/AppInfra/${Environment}/AutomationArtifactsBucketName}}'

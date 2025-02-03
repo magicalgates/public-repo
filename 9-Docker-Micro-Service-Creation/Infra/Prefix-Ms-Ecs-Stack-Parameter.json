@@ -1,0 +1,122 @@
+[
+    {
+        "ParameterKey": "ResourceNamePrefix",
+        "ParameterValue": "Prefix"
+    },
+    {
+        "ParameterKey": "LBListener",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "ContainerMemorySize",
+        "ParameterValue": "3000"
+    },
+    {
+        "ParameterKey": "LoadBalancerPort",
+        "ParameterValue": "443"
+    },
+    {
+        "ParameterKey": "ProfileName",
+        "ParameterValue": "stgsqlup"
+    },
+    {
+        "ParameterKey": "ContainerCpuSize",
+        "ParameterValue": "1500"
+    },
+    {
+        "ParameterKey": "ContainerEntryPointRequired",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "LoadBalancerListenerPriority",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "ContainerVolumesRequired",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "TGProtocol",
+        "ParameterValue": "HTTP"
+    },
+    {
+        "ParameterKey": "TaskNetworkMode",
+        "ParameterValue": "bridge"
+    },
+    {
+        "ParameterKey": "LoadBalancerProtocol",
+        "ParameterValue": "HTTPS"
+    },
+    {
+        "ParameterKey": "ContainerPort",
+        "ParameterValue": "8085"
+    },
+    {
+        "ParameterKey": "TargetGroup",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "MountVolumeName",
+        "ParameterValue": "cync-ms"
+    },
+    {
+        "ParameterKey": "ApplicationID",
+        "ParameterValue": "TL"
+    },
+    {
+        "ParameterKey": "TDVolumes",
+        "ParameterValue": "/cync-ms/log"
+    },
+    {
+        "ParameterKey": "Service",
+        "ParameterValue": "Ecs"
+    },
+    {
+        "ParameterKey": "DesiredCount",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "ECRRepoName",
+        "ParameterValue": "prefix-stgsqlup-ms-ecr-repo"
+    },
+    {
+        "ParameterKey": "TGPort",
+        "ParameterValue": "80"
+    },
+    {
+        "ParameterKey": "HostHeaderConfigValue",
+        "ParameterValue": "ms.example.com"
+    },
+    {
+        "ParameterKey": "TermloanFolderName",
+        "ParameterValue": "tl-ms"
+    },
+    {
+        "ParameterKey": "EntryPointValue",
+        "ParameterValue": "sh,-c,./start_docker.sh"
+    },
+    {
+        "ParameterKey": "TGHealthCheckPath",
+        "ParameterValue": "/home/heartBeat"
+    },
+    {
+        "ParameterKey": "HostMountpath",
+        "ParameterValue": "/var/log/cync-termloan-ms-log"
+    },
+    {
+        "ParameterKey": "TGHealthCheckSuccessCode",
+        "ParameterValue": "200"
+    },
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "SecretName",
+        "ParameterValue": "/Ms/backend_stgsqlup-wq1YlU"
+    },
+    {
+        "ParameterKey": "LoadBalancerListenerArn",
+        "ParameterValue": "arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:listener/app/-Pvt-App-Lb/2c340f252bc426d7/97dc78de31197919"
+    }
+]

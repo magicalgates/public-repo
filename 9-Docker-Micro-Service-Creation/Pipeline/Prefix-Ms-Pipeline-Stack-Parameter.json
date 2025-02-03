@@ -1,0 +1,90 @@
+[
+    {
+        "ParameterKey": "EnvironmentComputeType",
+        "ParameterValue": "BUILD_GENERAL1_SMALL"
+    },
+    {
+        "ParameterKey": "ImageRepoValue",
+        "ParameterValue": "nds-cync-stgsqlup-termloan-ms-ecr-repo"
+    },
+    {
+        "ParameterKey": "ResourceNamePrefix",
+        "ParameterValue": "Nds-Cync"
+    },
+    {
+        "ParameterKey": "UserParameters",
+        "ParameterValue": "{ \"clusterName\" :\"Nds-Cync-StgSqlUp-Common-One-Ecs-Cluster\", \"serviceName\" :\"Nds-Cync-StgSqlUp-TL-Svc-Ecs\" }"
+    },
+    {
+        "ParameterKey": "RepositoryName",
+        "ParameterValue": "cync-term-loans"
+    },
+    {
+        "ParameterKey": "GitHubSecretName",
+        "ParameterValue": "Nds-Cync-StgSqlUp-Github-Secret"
+    },
+    {
+        "ParameterKey": "GitHubSecretKey",
+        "ParameterValue": "GithubToken"
+    },
+    {
+        "ParameterKey": "Envvaluescripts3path",
+        "ParameterValue": "stgsqlup/ms-term-loan"
+    },
+    {
+        "ParameterKey": "Image",
+        "ParameterValue": "aws/codebuild/standard:6.0"
+    },
+    {
+        "ParameterKey": "JsonPath",
+        "ParameterValue": "$.ref"
+    },
+    {
+        "ParameterKey": "MatchEquals",
+        "ParameterValue": "refs/heads/{Branch}"
+    },
+    {
+        "ParameterKey": "Envvaluestaticcodebucket",
+        "ParameterValue": "cync-code-reports"
+    },
+    {
+        "ParameterKey": "RepositoryBranch",
+        "ParameterValue": "release_termln_ms_02_aug_2024_j21"
+    },
+    {
+        "ParameterKey": "FunctionName",
+        "ParameterValue": "Nds-Cync-StgSqlUp-Common-Ecs-Deployment-Lambda"
+    },
+    {
+        "ParameterKey": "ImageTagValue",
+        "ParameterValue": "latest"
+    },
+    {
+        "ParameterKey": "EnvironmentType",
+        "ParameterValue": "LINUX_CONTAINER"
+    },
+    {
+        "ParameterKey": "AutoDeployment",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "ServiceName",
+        "ParameterValue": "Termloan-Ms"
+    },
+    {
+        "ParameterKey": "Authentication",
+        "ParameterValue": "GITHUB_HMAC"
+    },
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "ApplicationID",
+        "ParameterValue": "Termloan"
+    },
+    {
+        "ParameterKey": "BuildSpecName",
+        "ParameterValue": "stgsqlup/ms-term-loan/buildspec.yml"
+    }
+]

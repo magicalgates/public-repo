@@ -1,0 +1,130 @@
+[
+    {
+        "ParameterKey": "DesiredSize",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "ResourceNamePrefix",
+        "ParameterValue": "Prefix"
+    },
+    {
+        "ParameterKey": "Owner",
+        "ParameterValue": "Nds"
+    },
+    {
+        "ParameterKey": "ASGScheduleStartMinCount",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "ASGScheduleStopCron",
+        "ParameterValue": "30 18 * * 1-7"
+    },
+    {
+        "ParameterKey": "ASGScheduleStartCron",
+        "ParameterValue": "30 3 * * 1-5"
+    },
+    {
+        "ParameterKey": "ASGScheduleStartDesired",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "ApplicationID",
+        "ParameterValue": "Common"
+    },
+    {
+        "ParameterKey": "InstanceType",
+        "ParameterValue": "t3.2xlarge"
+    },
+    {
+        "ParameterKey": "InstanceMetadataTags",
+        "ParameterValue": "enabled"
+    },
+    {
+        "ParameterKey": "EBSVolumeDeviceName",
+        "ParameterValue": "/dev/xvda"
+    },
+    {
+        "ParameterKey": "EBSVolumeType",
+        "ParameterValue": "gp3"
+    },
+    {
+        "ParameterKey": "CreateScheduledActions",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "ASGScheduleStopMinCount",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "Service",
+        "ParameterValue": "Common-One-Ecs-Cluster"
+    },
+    {
+        "ParameterKey": "MaxSize",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "HttpEndpoint",
+        "ParameterValue": "enabled"
+    },
+    {
+        "ParameterKey": "MinSize",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "Project",
+        "ParameterValue": "Prefix"
+    },
+    {
+        "ParameterKey": "TerminationPolicies",
+        "ParameterValue": "NewestInstance"
+    },
+    {
+        "ParameterKey": "ASGScheduleStartMaxCount",
+        "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "HttpTokens",
+        "ParameterValue": "required"
+    },
+    {
+        "ParameterKey": "ASGScheduleStopDesired",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "ASGScheduleStopMaxCount",
+        "ParameterValue": "0"
+    },
+    {
+        "ParameterKey": "State",
+        "ParameterValue": "green"
+    },
+    {
+        "ParameterKey": "Environment",
+        "ParameterValue": "StgSqlUp"
+    },
+    {
+        "ParameterKey": "EBSVolumeSize",
+        "ParameterValue": "30"
+    },
+    {
+        "ParameterKey": "ApplicationRole",
+        "ParameterValue": "One-Ecs-Cluster"
+    },
+    {
+        "ParameterKey": "InfoClassification",
+        "ParameterValue": "Internal"
+    },
+    {
+        "ParameterKey": "EC2ImageId",
+        "ParameterValue": "ami-078b975e9370a6516"
+    },
+    {
+        "ParameterKey": "ParameterStoreKey",
+        "ParameterValue": "EcsClusterName"
+    },
+    {
+        "ParameterKey": "SSMParamRequired",
+        "ParameterValue": "true"
+    }
+]
